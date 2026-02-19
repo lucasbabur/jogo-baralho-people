@@ -1,65 +1,179 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { CARD_VALUES } from "@/lib/cardData";
+import type { CardValue, Card } from "@/types/game";
+
+function generateRoomCode(): string {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let code = "";
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
 
 export default function Home() {
+  const router = useRouter();
+  const [joinCode, setJoinCode] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleCreateRoom = async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      // Generate a unique room code
+      let code = generateRoomCode();
+      let attempts = 0;
+      while (attempts < 10) {
+        const existing = await getDoc(doc(db, "rooms", code));
+        if (!existing.exists()) break;
+        code = generateRoomCode();
+        attempts++;
+      }
+
+      if (attempts >= 10) {
+        setError("Falha ao gerar código da sala. Tente novamente.");
+        setLoading(false);
+        return;
+      }
+
+      const shuffledValues = shuffleArray<CardValue>(CARD_VALUES);
+      const cards: Card[] = shuffledValues.map((value, index) => ({
+        id: `card-${index}`,
+        value,
+        revealed: false,
+      }));
+
+      await setDoc(doc(db, "rooms", code), {
+        code,
+        cards,
+        createdAt: Date.now(),
+      });
+
+      router.push(`/room/${code}`);
+    } catch {
+      setError("Falha ao criar sala. Tente novamente.");
+      setLoading(false);
+    }
+  };
+
+  const handleJoinRoom = () => {
+    const code = joinCode.trim().toUpperCase();
+    if (!code) {
+      setError("Insira o código da sala");
+      return;
+    }
+    if (code.length !== 6) {
+      setError("O código deve ter 6 caracteres");
+      return;
+    }
+    router.push(`/room/${code}`);
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-950 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Background grid */}
+      <div
+        className="absolute inset-0 opacity-[0.03]"
+        style={{
+          backgroundImage: `
+            linear-gradient(rgba(34,197,94,1) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(34,197,94,1) 1px, transparent 1px)
+          `,
+          backgroundSize: "40px 40px",
+        }}
+      />
+
+      <div className="w-full max-w-md relative z-10">
+        {/* Title */}
+        <div className="text-center mb-10">
+          {/* Logo */}
+          <div className="mx-auto mb-6 w-16 h-16 bg-emerald-500/10 border-2 border-emerald-500/40 rotate-45 flex items-center justify-center">
+            <span className="text-emerald-400 text-2xl font-black -rotate-45 tracking-tighter">
+              LL
+            </span>
+          </div>
+          <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">
+            Jogo dos Princípios
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-emerald-400/60 text-base">
+            Lastlink
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {/* Card container */}
+        <div className="bg-white/[0.03] backdrop-blur-xl border border-emerald-500/15 rounded-2xl p-8 shadow-2xl shadow-emerald-500/5">
+          {/* Create Room */}
+          <div className="mb-8">
+            <h2 className="text-white text-lg font-semibold mb-4">
+              Criar nova sala
+            </h2>
+            <button
+              onClick={handleCreateRoom}
+              disabled={loading}
+              className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all duration-200 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 active:scale-[0.98] cursor-pointer"
+            >
+              {loading ? "Criando..." : "Criar Sala"}
+            </button>
+          </div>
+
+          {/* Divider */}
+          <div className="flex items-center gap-4 mb-8">
+            <div className="flex-1 h-px bg-emerald-500/10" />
+            <span className="text-white/30 text-sm font-medium">OU</span>
+            <div className="flex-1 h-px bg-emerald-500/10" />
+          </div>
+
+          {/* Join Room */}
+          <div>
+            <h2 className="text-white text-lg font-semibold mb-4">
+              Entrar em uma sala
+            </h2>
+            <div className="flex gap-3">
+              <input
+                type="text"
+                placeholder="Código da sala"
+                value={joinCode}
+                onChange={(e) => {
+                  setJoinCode(e.target.value.toUpperCase());
+                  setError("");
+                }}
+                onKeyDown={(e) => e.key === "Enter" && handleJoinRoom()}
+                maxLength={6}
+                className="flex-1 px-4 py-3.5 bg-white/[0.03] border border-emerald-500/15 rounded-xl text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/30 tracking-[0.3em] text-center font-mono text-lg transition-all"
+              />
+              <button
+                onClick={handleJoinRoom}
+                className="px-6 py-3.5 bg-white/5 border border-emerald-500/20 hover:bg-emerald-500/10 text-emerald-400 hover:text-emerald-300 font-semibold rounded-xl transition-all duration-200 active:scale-[0.98] cursor-pointer"
+              >
+                Entrar
+              </button>
+            </div>
+          </div>
+
+          {/* Error */}
+          {error && (
+            <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+              <p className="text-red-400 text-sm text-center">{error}</p>
+            </div>
+          )}
         </div>
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }
