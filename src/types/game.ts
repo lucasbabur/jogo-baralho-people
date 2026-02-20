@@ -3,7 +3,7 @@ export interface CardValue {
   principles: string[];
   we_adopt: string[];
   not_confuse_with: string[];
-  reflection_questions: string[];
+  reflection_question: string;
 }
 
 export interface Card {

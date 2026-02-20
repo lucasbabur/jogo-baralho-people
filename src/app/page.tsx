@@ -144,7 +144,7 @@ export default function Home() {
             <h2 className="text-white text-lg font-semibold mb-4">
               Entrar em uma sala
             </h2>
-            <div className="flex gap-3">
+            <div className="space-y-3">
               <input
                 type="text"
                 placeholder="Código da sala"
@@ -155,11 +155,11 @@ export default function Home() {
                 }}
                 onKeyDown={(e) => e.key === "Enter" && handleJoinRoom()}
                 maxLength={6}
-                className="flex-1 px-4 py-3.5 bg-white/[0.03] border border-emerald-500/15 rounded-xl text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/30 tracking-[0.3em] text-center font-mono text-lg transition-all"
+                className="w-full px-4 py-3.5 bg-white/[0.03] border border-emerald-500/15 rounded-xl text-white placeholder-white/20 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/30 tracking-[0.3em] text-center font-mono text-lg transition-all"
               />
               <button
                 onClick={handleJoinRoom}
-                className="px-6 py-3.5 bg-white/5 border border-emerald-500/20 hover:bg-emerald-500/10 text-emerald-400 hover:text-emerald-300 font-semibold rounded-xl transition-all duration-200 active:scale-[0.98] cursor-pointer"
+                className="w-full py-3.5 bg-white/5 border border-emerald-500/20 hover:bg-emerald-500/10 text-emerald-400 hover:text-emerald-300 font-semibold rounded-xl transition-all duration-200 active:scale-[0.98] cursor-pointer"
               >
                 Entrar
               </button>

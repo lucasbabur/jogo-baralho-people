@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useCallback } from "react";
+import { use, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useRoom } from "@/hooks/useRoom";
 import type { Card } from "@/types/game";
@@ -16,15 +16,22 @@ export default function RoomPage({ params }: PageProps) {
   const { roomState, error, loading, revealCard, resetGame } =
     useRoom(roomCode);
   const [copied, setCopied] = useState(false);
-  const [flippedCards, setFlippedCards] = useState<Set<string>>(new Set());
+  const [slidingCard, setSlidingCard] = useState<string | null>(null);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const revealTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleRevealCard = useCallback(
     (cardId: string) => {
-      setFlippedCards((prev) => new Set(prev).add(cardId));
-      revealCard(cardId);
+      if (slidingCard) return; // prevent double-click during animation
+      setSlidingCard(cardId);
+
+      // Wait for slide-out animation to finish, then reveal in Firestore
+      revealTimeoutRef.current = setTimeout(() => {
+        revealCard(cardId);
+        setSlidingCard(null);
+      }, 500);
     },
-    [revealCard]
+    [revealCard, slidingCard]
   );
 
   const handleCopyLink = useCallback(() => {
@@ -165,27 +172,15 @@ export default function RoomPage({ params }: PageProps) {
                   );
                 })}
 
-                {/* Top Card - Clickable with flip */}
+                {/* Top Card - Clickable with slide-out */}
                 {topCard && (
                   <div
-                    className="card-flip-container absolute inset-0 z-50 cursor-pointer"
+                    className={`absolute inset-0 z-50 cursor-pointer ${
+                      slidingCard === topCard.id ? "card-slide-out" : ""
+                    }`}
                     onClick={() => handleRevealCard(topCard.id)}
                   >
-                    <div
-                      className={`card-flip-inner ${
-                        flippedCards.has(topCard.id) ? "flipped" : ""
-                      }`}
-                    >
-                      {/* BACK of card */}
-                      <div className="card-face">
-                        <CardBack />
-                      </div>
-
-                      {/* FRONT of card (revealed) */}
-                      <div className="card-face card-face-front">
-                        <CardFront card={topCard} />
-                      </div>
-                    </div>
+                    <CardBack />
                   </div>
                 )}
               </div>
@@ -300,32 +295,6 @@ function CardBack() {
   );
 }
 
-/* ─── Card Front (inside the flip) ─── */
-function CardFront({ card }: { card: Card }) {
-  return (
-    <div className="w-full h-full rounded-2xl bg-gradient-to-br from-gray-900 via-gray-950 to-black border-2 border-emerald-500/30 shadow-2xl overflow-hidden relative">
-      {/* Title bar */}
-      <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-4 py-3">
-        <h3 className="text-emerald-400 font-bold text-sm text-center uppercase tracking-wider">
-          {card.value.title}
-        </h3>
-      </div>
-
-      {/* Compact content */}
-      <div className="p-3 card-content-scroll overflow-y-auto" style={{ maxHeight: "calc(100% - 48px)" }}>
-        <div className="space-y-2">
-          {card.value.principles.slice(0, 2).map((p, i) => (
-            <p key={i} className="text-white/60 text-[10px] leading-tight flex gap-1">
-              <span className="text-emerald-400 shrink-0">&#9670;</span>
-              {p}
-            </p>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /* ─── Revealed Card Compact (sidebar) ─── */
 function RevealedCardCompact({
   card,
@@ -410,15 +379,11 @@ function RevealedCardCompact({
           {/* Reflection */}
           <div className="card-section">
             <h4 className="text-amber-400/70 text-[10px] font-bold uppercase tracking-wider mb-2">
-              Perguntas para reflexão
+              Pergunta para reflexão
             </h4>
-            <ul className="space-y-2">
-              {card.value.reflection_questions.map((q, i) => (
-                <li key={i} className="text-white/50 text-xs leading-relaxed italic">
-                  &ldquo;{q}&rdquo;
-                </li>
-              ))}
-            </ul>
+            <p className="text-white/50 text-xs leading-relaxed italic">
+              &ldquo;{card.value.reflection_question}&rdquo;
+            </p>
           </div>
         </div>
       )}
@@ -507,15 +472,11 @@ function RevealedCardFull({
 
           <div className="card-section">
             <h4 className="text-amber-400/70 text-[10px] font-bold uppercase tracking-wider mb-2">
-              Perguntas para reflexão
+              Pergunta para reflexão
             </h4>
-            <ul className="space-y-2">
-              {card.value.reflection_questions.map((q, i) => (
-                <li key={i} className="text-white/50 text-xs leading-relaxed italic">
-                  &ldquo;{q}&rdquo;
-                </li>
-              ))}
-            </ul>
+            <p className="text-white/50 text-xs leading-relaxed italic">
+              &ldquo;{card.value.reflection_question}&rdquo;
+            </p>
           </div>
         </div>
       )}

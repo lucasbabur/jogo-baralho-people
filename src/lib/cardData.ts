@@ -1,6 +1,14 @@
 import type { CardValue } from "@/types/game";
 
-export const CARD_VALUES: CardValue[] = [
+interface CardCategory {
+  title: string;
+  principles: string[];
+  we_adopt: string[];
+  not_confuse_with: string[];
+  reflection_questions: string[];
+}
+
+const CARD_CATEGORIES: CardCategory[] = [
   {
     title: "Impacto para o cliente",
     principles: [
@@ -88,3 +96,14 @@ export const CARD_VALUES: CardValue[] = [
     ],
   },
 ];
+
+// Split each category into individual cards (1 reflection question per card)
+export const CARD_VALUES: CardValue[] = CARD_CATEGORIES.flatMap((category) =>
+  category.reflection_questions.map((question) => ({
+    title: category.title,
+    principles: category.principles,
+    we_adopt: category.we_adopt,
+    not_confuse_with: category.not_confuse_with,
+    reflection_question: question,
+  }))
+);
