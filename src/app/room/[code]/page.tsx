@@ -2,6 +2,7 @@
 
 import { use, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useRoom } from "@/hooks/useRoom";
 import type { Card } from "@/types/game";
 
@@ -275,13 +276,13 @@ function CardBack() {
 
       {/* Center logo area */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-2">
-        {/* Logo diamond shape */}
         <div className="relative" style={{ animation: "pulseGlow 3s ease-in-out infinite" }}>
-          <div className="w-14 h-14 bg-emerald-500/10 border-2 border-emerald-500/50 rotate-45 flex items-center justify-center">
-            <span className="text-emerald-400 text-xl font-black -rotate-45 tracking-tighter">
-              LL
-            </span>
-          </div>
+          <Image
+            src="/logotipo-lastlink.png"
+            alt="Lastlink"
+            width={100}
+            height={30}
+          />
         </div>
       </div>
 

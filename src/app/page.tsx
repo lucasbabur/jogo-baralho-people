@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { CARD_VALUES } from "@/lib/cardData";
@@ -103,10 +104,15 @@ export default function Home() {
         {/* Title */}
         <div className="text-center mb-10">
           {/* Logo */}
-          <div className="mx-auto mb-6 w-16 h-16 bg-emerald-500/10 border-2 border-emerald-500/40 rotate-45 flex items-center justify-center">
-            <span className="text-emerald-400 text-2xl font-black -rotate-45 tracking-tighter">
-              LL
-            </span>
+          <div className="mx-auto mb-6">
+            <Image
+              src="/logotipo-lastlink.png"
+              alt="Lastlink"
+              width={160}
+              height={48}
+              className="mx-auto"
+              priority
+            />
           </div>
           <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">
             Jogo dos Princípios
