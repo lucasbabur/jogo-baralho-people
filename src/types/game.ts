@@ -1,9 +1,9 @@
 export interface CardValue {
   title: string;
   principles: string[];
-  we_adopt: string[];
-  not_confuse_with: string[];
-  reflection_question: string;
+  ao_adotar: string[];
+  nao_confundimos_com: string[];
+  pergunta_reflexao: string;
 }
 
 export interface Card {
@@ -16,4 +16,13 @@ export interface RoomState {
   code: string;
   cards: Card[];
   createdAt: number;
+}
+
+// Grouped principle for the final summary (4 unique principles)
+export interface GroupedPrinciple {
+  title: string;
+  principles: string[];
+  ao_adotar: string[];
+  nao_confundimos_com: string[];
+  perguntas_reflexao: string[];
 }

@@ -1,10 +1,10 @@
 "use client";
 
-import { use, useState, useCallback, useRef } from "react";
+import { use, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useRoom } from "@/hooks/useRoom";
-import type { Card } from "@/types/game";
+import type { Card, GroupedPrinciple } from "@/types/game";
 
 interface PageProps {
   params: Promise<{ code: string }>;
@@ -23,10 +23,9 @@ export default function RoomPage({ params }: PageProps) {
 
   const handleRevealCard = useCallback(
     (cardId: string) => {
-      if (slidingCard) return; // prevent double-click during animation
+      if (slidingCard) return;
       setSlidingCard(cardId);
 
-      // Wait for slide-out animation to finish, then reveal in Firestore
       revealTimeoutRef.current = setTimeout(() => {
         revealCard(cardId);
         setSlidingCard(null);
@@ -47,6 +46,45 @@ export default function RoomPage({ params }: PageProps) {
   const revealedCards = roomState?.cards.filter((c) => c.revealed) ?? [];
   const unrevealedCards = roomState?.cards.filter((c) => !c.revealed) ?? [];
   const topCard = unrevealedCards[0] ?? null;
+
+  // Group revealed cards by title for the final summary (4 unique principles)
+  const groupedPrinciples = useMemo<GroupedPrinciple[]>(() => {
+    if (!roomState) return [];
+
+    const groupMap = new Map<string, GroupedPrinciple>();
+
+    for (const card of roomState.cards) {
+      const existing = groupMap.get(card.value.title);
+      if (existing) {
+        // Merge principles, nao_confundimos_com, perguntas_reflexao (deduplicated)
+        for (const p of card.value.principles) {
+          if (!existing.principles.includes(p)) existing.principles.push(p);
+        }
+        for (const a of card.value.ao_adotar) {
+          if (!existing.ao_adotar.includes(a)) existing.ao_adotar.push(a);
+        }
+        for (const n of card.value.nao_confundimos_com) {
+          if (!existing.nao_confundimos_com.includes(n))
+            existing.nao_confundimos_com.push(n);
+        }
+        if (
+          !existing.perguntas_reflexao.includes(card.value.pergunta_reflexao)
+        ) {
+          existing.perguntas_reflexao.push(card.value.pergunta_reflexao);
+        }
+      } else {
+        groupMap.set(card.value.title, {
+          title: card.value.title,
+          principles: [...card.value.principles],
+          ao_adotar: [...card.value.ao_adotar],
+          nao_confundimos_com: [...card.value.nao_confundimos_com],
+          perguntas_reflexao: [card.value.pergunta_reflexao],
+        });
+      }
+    }
+
+    return Array.from(groupMap.values());
+  }, [roomState]);
 
   // Loading state
   if (!roomState) {
@@ -114,7 +152,7 @@ export default function RoomPage({ params }: PageProps) {
       {/* Game Area */}
       <div className="max-w-6xl mx-auto">
         {allRevealed ? (
-          /* Game Finished */
+          /* Game Finished - Show 4 grouped principles */
           <div className="text-center py-12 space-y-8">
             <h2 className="text-4xl font-bold text-white">
               Todos os princípios revelados!
@@ -124,15 +162,15 @@ export default function RoomPage({ params }: PageProps) {
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">
-              {roomState.cards.map((card, i) => (
-                <RevealedCardFull
-                  key={card.id}
-                  card={card}
+              {groupedPrinciples.map((group, i) => (
+                <GroupedPrincipleCard
+                  key={group.title}
+                  group={group}
                   index={i}
-                  expanded={expandedCard === card.id}
+                  expanded={expandedCard === group.title}
                   onToggle={() =>
                     setExpandedCard(
-                      expandedCard === card.id ? null : card.id
+                      expandedCard === group.title ? null : group.title
                     )
                   }
                 />
@@ -230,7 +268,6 @@ export default function RoomPage({ params }: PageProps) {
 /* ─── Card Back ─── */
 function CardBack() {
   const text = "JOGO DOS PRINCÍPIOS LASTLINK";
-  // Repeat text to fill the circle
   const repeatedText = `${text}  ·  ${text}  ·  `;
 
   return (
@@ -296,7 +333,7 @@ function CardBack() {
   );
 }
 
-/* ─── Revealed Card Compact (sidebar) ─── */
+/* ─── Revealed Card Compact (sidebar during game) ─── */
 function RevealedCardCompact({
   card,
   expanded,
@@ -347,35 +384,39 @@ function RevealedCardCompact({
             </ul>
           </div>
 
-          {/* We adopt */}
-          <div className="card-section">
-            <h4 className="text-emerald-500/70 text-[10px] font-bold uppercase tracking-wider mb-2">
-              Adotamos
-            </h4>
-            <ul className="space-y-1.5">
-              {card.value.we_adopt.map((item, i) => (
-                <li key={i} className="text-white/60 text-xs leading-relaxed flex gap-1.5">
-                  <span className="text-emerald-400 shrink-0 mt-0.5">&#10003;</span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
+          {/* Ao adotar (only show if not empty) */}
+          {card.value.ao_adotar.length > 0 && (
+            <div className="card-section">
+              <h4 className="text-emerald-500/70 text-[10px] font-bold uppercase tracking-wider mb-2">
+                Ao adotar
+              </h4>
+              <ul className="space-y-1.5">
+                {card.value.ao_adotar.map((item, i) => (
+                  <li key={i} className="text-white/60 text-xs leading-relaxed flex gap-1.5">
+                    <span className="text-emerald-400 shrink-0 mt-0.5">&#10003;</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
-          {/* Not confuse with */}
-          <div className="card-section">
-            <h4 className="text-red-400/70 text-[10px] font-bold uppercase tracking-wider mb-2">
-              Não confundir com
-            </h4>
-            <ul className="space-y-1.5">
-              {card.value.not_confuse_with.map((item, i) => (
-                <li key={i} className="text-white/40 text-xs leading-relaxed flex gap-1.5">
-                  <span className="text-red-400/60 shrink-0 mt-0.5">&#10007;</span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
+          {/* Não confundimos com */}
+          {card.value.nao_confundimos_com.length > 0 && (
+            <div className="card-section">
+              <h4 className="text-red-400/70 text-[10px] font-bold uppercase tracking-wider mb-2">
+                Não confundir com
+              </h4>
+              <ul className="space-y-1.5">
+                {card.value.nao_confundimos_com.map((item, i) => (
+                  <li key={i} className="text-white/40 text-xs leading-relaxed flex gap-1.5">
+                    <span className="text-red-400/60 shrink-0 mt-0.5">&#10007;</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* Reflection */}
           <div className="card-section">
@@ -383,7 +424,7 @@ function RevealedCardCompact({
               Pergunta para reflexão
             </h4>
             <p className="text-white/50 text-xs leading-relaxed italic">
-              &ldquo;{card.value.reflection_question}&rdquo;
+              &ldquo;{card.value.pergunta_reflexao}&rdquo;
             </p>
           </div>
         </div>
@@ -392,14 +433,14 @@ function RevealedCardCompact({
   );
 }
 
-/* ─── Revealed Card Full (end screen) ─── */
-function RevealedCardFull({
-  card,
+/* ─── Grouped Principle Card (end screen - 4 cards, one per principle) ─── */
+function GroupedPrincipleCard({
+  group,
   index,
   expanded,
   onToggle,
 }: {
-  card: Card;
+  group: GroupedPrinciple;
   index: number;
   expanded: boolean;
   onToggle: () => void;
@@ -417,7 +458,7 @@ function RevealedCardFull({
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4">
         <h3 className="text-emerald-400 font-bold text-base">
-          {card.value.title}
+          {group.title}
         </h3>
         <span
           className={`text-emerald-500/50 text-xs transition-transform duration-200 ${
@@ -428,10 +469,10 @@ function RevealedCardFull({
         </span>
       </div>
 
-      {/* Always show principles */}
+      {/* Always show all principles */}
       <div className="px-5 pb-3">
         <ul className="space-y-1">
-          {card.value.principles.map((p, i) => (
+          {group.principles.map((p, i) => (
             <li key={i} className="text-white/50 text-xs leading-relaxed flex gap-1.5">
               <span className="text-emerald-400 shrink-0 mt-0.5">&#9670;</span>
               {p}
@@ -443,41 +484,52 @@ function RevealedCardFull({
       {/* Expanded sections */}
       {expanded && (
         <div className="px-5 pb-5 space-y-4 border-t border-emerald-500/10 pt-4">
-          <div className="card-section">
-            <h4 className="text-emerald-500/70 text-[10px] font-bold uppercase tracking-wider mb-2">
-              Adotamos
-            </h4>
-            <ul className="space-y-1.5">
-              {card.value.we_adopt.map((item, i) => (
-                <li key={i} className="text-white/60 text-xs leading-relaxed flex gap-1.5">
-                  <span className="text-emerald-400 shrink-0 mt-0.5">&#10003;</span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
+          {/* Ao adotar (only if non-empty) */}
+          {group.ao_adotar.length > 0 && (
+            <div className="card-section">
+              <h4 className="text-emerald-500/70 text-[10px] font-bold uppercase tracking-wider mb-2">
+                Ao adotar
+              </h4>
+              <ul className="space-y-1.5">
+                {group.ao_adotar.map((item, i) => (
+                  <li key={i} className="text-white/60 text-xs leading-relaxed flex gap-1.5">
+                    <span className="text-emerald-400 shrink-0 mt-0.5">&#10003;</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
-          <div className="card-section">
-            <h4 className="text-red-400/70 text-[10px] font-bold uppercase tracking-wider mb-2">
-              Não confundir com
-            </h4>
-            <ul className="space-y-1.5">
-              {card.value.not_confuse_with.map((item, i) => (
-                <li key={i} className="text-white/40 text-xs leading-relaxed flex gap-1.5">
-                  <span className="text-red-400/60 shrink-0 mt-0.5">&#10007;</span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
+          {/* Não confundimos com */}
+          {group.nao_confundimos_com.length > 0 && (
+            <div className="card-section">
+              <h4 className="text-red-400/70 text-[10px] font-bold uppercase tracking-wider mb-2">
+                Não confundir com
+              </h4>
+              <ul className="space-y-1.5">
+                {group.nao_confundimos_com.map((item, i) => (
+                  <li key={i} className="text-white/40 text-xs leading-relaxed flex gap-1.5">
+                    <span className="text-red-400/60 shrink-0 mt-0.5">&#10007;</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
+          {/* Reflection questions (all from the group) */}
           <div className="card-section">
             <h4 className="text-amber-400/70 text-[10px] font-bold uppercase tracking-wider mb-2">
-              Pergunta para reflexão
+              Perguntas para reflexão
             </h4>
-            <p className="text-white/50 text-xs leading-relaxed italic">
-              &ldquo;{card.value.reflection_question}&rdquo;
-            </p>
+            <div className="space-y-2">
+              {group.perguntas_reflexao.map((q, i) => (
+                <p key={i} className="text-white/50 text-xs leading-relaxed italic">
+                  &ldquo;{q}&rdquo;
+                </p>
+              ))}
+            </div>
           </div>
         </div>
       )}
